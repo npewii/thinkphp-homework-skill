@@ -65,7 +65,15 @@
 - **[实验]3-2 LoginValidate+ValidateMiddleware**：`handle(Request $request,\Closure $next,string $validateClass="",string $scene="")`，空类抛`InvalidArgumentException`（配置错误，走全局异常：开发`APP_DEBUG=true`返traces，生产返`code 0 页面错误`+写`runtime/log/`）；`try{json_decode(php://input)->validate($validateClass)->scene($scene)->check($data);$request->validatedData=$data;return $next($request);}catch(ValidateException $e){return json 400}`。路由`Route::post('', 'login')->middleware(ValidateMiddleware::class,LoginValidate::class,'login')`（三参顺序对应形参），控制器`login(Request $request){return json($request->validatedData);}`不再重复解析。
 - **作业W03**：[实验]3-1+[实验]3-2合并7图一文件：Auth代码、Auth成功+失败2预览、LoginValidate代码、ValidateMiddleware代码、login方法代码、login成功1预览、login失败3预览（含Apifox地址+json+响应）。标识：图水印学号+方法注释学号。
 
-## W04-W16 待补充（已从W01教学日历提取标题）
-- W03 强制路由入口+Apifox定义 / W04 路由分组与中间件 / W05 JWT+登录完善 / W07 教学任务列表 / W08 成绩批量录入 / W09 录入性能优化 / W10 头像上传 / W11 v1 vs v2验收 / W12 Vue3+Axios双基址 / W13 登录页+路由守卫 / W14 任务列表页 / W15 成绩录入页 / W16 整合部署
-- 注：W03实际课件为“中间件与请求验证”（含[实验]3-1/3-2），上表标题系开学初版日历，以课件实物为准。
+## W04：数据库配置与访问（课程编号26-27-01，[实验]4-1/4-2/4-3）
+- **配置三件套**：项目根`.env`（ini格式，`APP_DEBUG=true`，`DB_TYPE/HOST/NAME/PORT/CHARSET/PREFIX=guirz_`，`DB_DRIVER=edu_r`默认只读，`[EDU_R]/[EDU_RU]/[EDU_RC]`分组配`DB_USER/DB_PASS`）→ `config/database.php`（`default=>env('DB_DRIVER','edu_r')`，`connections.edu_r/edu_ru/edu_rc`全字段`env()`读取，`trigger_sql=>env('APP_DEBUG',true)`）→ 多应用下`app/应用/config/`覆盖全局`config/`。生产用系统环境变量、.env不进Git。
+- **[实验]4-1 三连接**：`edu_r`只读（查询）、`edu_ru`读+更新、`edu_rc`读+插入；验收`Db::connect('edu_r')`可查；`connect`必须链式首位、仅当次有效。
+- **Db查询构造器**：`use think\facade\Db`门面；顺序`connect→table/name/where/field/order/limit/page→find/select/value/column/count/insert/update/delete`；`name()`自动加前缀 vs `table()`全名；`find(无null)/select(toArray)/value(无null)/column(无[])`；`insertGetId/insertAll`增、`update/inc`改（返回影响条数，0=未改）、`delete(true)`删（无条件必须带true）。
+- **[实验]4-2 login查库**：`User::login()`按`urole`分`stu/te`表，`Db::connect('edu_r')->name('stu')->where('stu_id',$uid)->find()`，账号不存在→401，密码比对失败→401，成功→200+用户信息；全程只读连接。
+- **SQL日志调试**：`runtime/log/YYYYMM/DD.log`，三段式`CONNECT / SHOW FULL COLUMNS / SELECT ... LIMIT 1 [RunTime]`；场景：空结果（核对条件）、密码失败（确认查到用户→核密码/md5）、表不存在1146（核前缀/连接/表）；技巧：`tail -f`(Linux)/`Get-Content`(Win)实时看、按sql/error过滤、按学号搜、盯RunTime、生产关日志。
+- **作业W04**：[实验]4-1+[实验]4-2+[实验]4-3合并5图一文件：.env代码、database.php代码、login方法代码、login预览4种（学生/老师×成功/失败）、日志文件标注关键信息。标识：图水印学号+方法注释学号。
+
+## W05-W16 待补充（已从W01教学日历提取标题）
+- W05 JWT+登录完善 / W07 教学任务列表 / W08 成绩批量录入 / W09 录入性能优化 / W10 头像上传 / W11 v1 vs v2验收 / W12 Vue3+Axios双基址 / W13 登录页+路由守卫 / W14 任务列表页 / W15 成绩录入页 / W16 整合部署
+- 注：W03实际课件为“中间件与请求验证”（含[实验]3-1/3-2），W04实际课件为“数据库配置与访问”（含[实验]4-1/4-2/4-3），上表标题系开学初版日历，以课件实物为准。
 - 每学完一周，往此处追加：主题、关键命令/文件、复用点。保持“一周一段”。
