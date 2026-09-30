@@ -1,6 +1,6 @@
 # 课程索引（供AI判断回顾）
 
-> 做 W04+ 作业前先读本文件，再按需深读对应课件全文。
+> 做 W05+ 作业前先读本文件，再按需深读对应课件全文。
 
 ## W01：ThinkPHP安装与环境熟悉（26-27-01，9.2）
 - **MVC理论**：M=Model表映射关联，V=View模板，C=Controller收参调度。铁律：客户端只跟Controller打交道。优点：关注点分离、并行开发、开闭原则。
@@ -73,7 +73,19 @@
 - **SQL日志调试**：`runtime/log/YYYYMM/DD.log`，三段式`CONNECT / SHOW FULL COLUMNS / SELECT ... LIMIT 1 [RunTime]`；场景：空结果（核对条件）、密码失败（确认查到用户→核密码/md5）、表不存在1146（核前缀/连接/表）；技巧：`tail -f`(Linux)/`Get-Content`(Win)实时看、按sql/error过滤、按学号搜、盯RunTime、生产关日志。
 - **作业W04**：[实验]4-1+[实验]4-2+[实验]4-3合并5图一文件：.env代码、database.php代码、login方法代码、login预览4种（学生/老师×成功/失败）、日志文件标注关键信息。标识：图水印学号+方法注释学号。
 
-## W05-W16 待补充（已从W01教学日历提取标题）
-- W05 JWT+登录完善 / W07 教学任务列表 / W08 成绩批量录入 / W09 录入性能优化 / W10 头像上传 / W11 v1 vs v2验收 / W12 Vue3+Axios双基址 / W13 登录页+路由守卫 / W14 任务列表页 / W15 成绩录入页 / W16 整合部署
-- 注：W03实际课件为“中间件与请求验证”（含[实验]3-1/3-2），W04实际课件为“数据库配置与访问”（含[实验]4-1/4-2/4-3），上表标题系开学初版日历，以课件实物为准。
+## W05：模型：关联与预载入（课程编号26-27-01，[实验]5-1/5-2/5-3/5-4）
+- **为什么用模型**：Db是SQL生成器面向表字段；模型是业务对象（代言人），统一获取器格式化（如性别1/2）、声明式关联、只读/废弃字段保护、复用业务规则。
+- **[实验]5-1 八模型**（第9/14页）：`php think make:model edu@Stu/ClassModel/Major/Dep/Te/Course/Task/Score`落`app/edu/model/`；`Class`保留字用`ClassModel`；配`$table/$pk/$schema`/只读属性；`find()`验查；命名=去前缀表名驼峰首大写。
+- **属性**（第11-12页）：`name/table/suffix/pk/connection/query/field/schema/type/strict/disuse`；默认pk=`id`，示例`$pk='uid'`；`$schema`显式定义省一次自动获取查询。
+- **[实验]5-2 双向关联**（第17/19页）：`Stu::classInfo(){belongsTo(ClassModel::class,'stu_class','cl_id')}`反向；`ClassModel::stus(){hasMany(Stu::class,'stu_class','cl_id')}`正向（`$table='class'`）；验`$stu->classInfo->cl_name`、`$class->stus`。
+- **表5-4六组关系**（第20页）：belongsTo放子表/hasMany放父表：`Stu→ClassModel(stu_class)`、`ClassModel→Stu`、`ClassModel→Major(cl_major)`、`Major→ClassModel`、`Major→Dep(m_dep)`、`Dep→Major`。
+- **[实验]5-3 多级链**（第22页）：`ClassModel::majorInfo belongsTo Major`、`Major::classes hasMany ClassModel`、`Major::depInfo belongsTo Dep`、`Dep::majors hasMany Major`；验`$stu->classInfo->majorInfo->depInfo->dep_name`、`$dep->majors`。
+- **预载入vs懒加载**（第24-27页）：懒加载`Stu::select()+foreach->$stu->classInfo`即N+1（100学生101查）；预载入`Stu::with('classInfo')->select()`恒2查（主SELECT+关联WHERE IN）；表5-5：时机/次数1+N vs 1+1/内存/简洁度/场景；列表必用预载入，单条/分支可用懒加载。
+- **多级预载入**（第28-30页）：`with(['classInfo','classInfo.majorInfo','classInfo.majorInfo.depInfo'])`或简写`with(['classInfo.majorInfo.depInfo'])`；取`cl_name/m_name/dep_name`；100学生懒加载301查 vs 预载入4查；方法名大小写敏感；点号嵌套；单层可闭包`field`限字段，嵌套不限（内层闭包报错+多查）。
+- **[实验]5-4 stuInfo**（第31页）：`User::stuInfo()`收学号，`with(['classInfo.majorInfo.depInfo'])->where('stu_id')->find()`返班级/专业/系部名；开SQL日志计数：单条预载入4次、单条懒加载4次（列表场景差距才大）；交日志截图注关键信息。
+- **作业W05**：[实验]5-1~5-4合并4图一文件：8模型代码 / stuInfo代码 / 关联预载入日志 / 关联预载入预览。标识：图水印学号+方法注释学号。
+
+## W06-W16 待补充（已从W01教学日历提取标题）
+- W06 JWT+登录完善 / W07 教学任务列表 / W08 成绩批量录入 / W09 录入性能优化 / W10 头像上传 / W11 v1 vs v2验收 / W12 Vue3+Axios双基址 / W13 登录页+路由守卫 / W14 任务列表页 / W15 成绩录入页 / W16 整合部署
+- 注：W03实际课件为“中间件与请求验证”（含[实验]3-1/3-2），W04实际课件为“数据库配置与访问”（含[实验]4-1/4-2/4-3），W05实际课件为“模型：关联与预载入”（含[实验]5-1~5-4），上表标题系开学初版日历，以课件实物为准。
 - 每学完一周，往此处追加：主题、关键命令/文件、复用点。保持“一周一段”。
