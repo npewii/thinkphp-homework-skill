@@ -31,7 +31,10 @@ course-root/
 ├── week06-JWT身份认证/
 │   ├── 课件-06-JWT身份认证.md
 │   └── 作业-06.md
-└── week07-.../  (以此类推，一周一文件夹，一课件一作业对应)
+├── week07-JWT身份校验/
+│   ├── 课件-07-JWT身份校验.md   （前半完善复习W06产物verify/extractToken；后半新增JWT进阶理论：黑名单/版本号/短AT+Refresh Token；实验编号沿用6-1/6-3）
+│   └── 作业-07.md               （只交4图：JwtService/AuthMiddleware/User::info/Apifox测info）
+└── week08-.../  (以此类推，一周一文件夹，一课件一作业对应)
 ```
 
 
@@ -52,7 +55,8 @@ course-root/
 | W04 | 数据库配置(.env+database.php三连接)+Db查询构造器+login查库+SQL日志调试 | `.env(DB_TYPE/HOST/NAME/USER/PASS+EDU_R/RU/RC分组)`，`config/database.php`三连接`edu_r/edu_ru/edu_rc`+`env()`读取+`trigger_sql`，`Db::connect('edu_r')->name('stu')`首位connect，`find/select/value/column`查、`insertGetId/insertAll`增、`update/inc`改、`delete(true)`删，`login()`按`urole`分`stu/te`表查+密码比对+401/200，`runtime/log/`SQL日志 | W05+所有落库/查库接口：login必须走edu_r只读连接；密码失败/空结果先查SQL日志 |
 | W05 | 模型:关联与预载入+[实验]5-1~5-4+stuInfo多级预载入 | `php think make:model edu@Stu/ClassModel/Major/Dep/Te/Course/Task/Score`落`app/edu/model/`(Class是保留字用ClassModel)，`$table/$pk/$schema/$connection`，`Stu::classInfo belongsTo(ClassModel,'stu_class','cl_id')`+`ClassModel::stus hasMany(Stu,'stu_class','cl_id')`，链`ClassModel-majorInfo-Major-classes / Major-depInfo-Dep-majors`(外键`cl_major/m_dep`)，`Stu::with(['classInfo.majorInfo.depInfo'])->where('stu_id')->find()`，`User::stuInfo()`返班级/专业/系部名，单条预载入4次SQL vs 100条列表懒加载301次 | W06+所有关联查询：列表展示一律with预载入；方法名大小写敏感；嵌套不闭包限字段 |
 | W06 | JWT身份认证+[实验]6-1~6-3+模型login签发Token+AuthMiddleware验签 | `composer require firebase/php-jwt`，`.env[JWT]SECRET/EXPIRE`+`config/app.php jwt=>env('JWT.SECRET')`，`app/service/JwtService.php`(普通类不继承Service，`generate(iat/nbf/exp/uid/urole)+JWT::encode HS256`，`verify(JWT::decode+Key HS256)+Expired/SignatureInvalid/BeforeValid分类catch`，`extractToken(/^Bearer\s+(.+)$/i)`)，`BaseController::success/error(业务码=HTTP码)`，`Stu/Te::login(with预载入+md5比对+返uid/uname/urole/udep,失败null)`，`User::login(validatedData按urole分发+generate+data.token+success)`，`AuthMiddleware(extract→verify→catch Throwable返401→挂$request->jwtUser)→$next`，`User::info(success(jwtUser))` | W07+所有需登录接口：login签发Token放`data.token`，后续`Authorization: Bearer`携带，鉴权失败一律401；Payload只含uid/urole不存密码 |
-| W07-16 | 任务列表/成绩录入优化/上传/v1 vs v2验收/Vue+Axios/AI生成前端/整合部署 | 待课件补充后追加到`references/course-index.md` | 做W07+作业时，若涉及登录/token/路由/查库/模型关联，必须回看W01-W06 |
+| W07 | JWT身份校验：完善JwtService+中间件JWT验证+JWT进阶理论 | `verify`(4类catch转中文)/`extractToken`完善实现；`Authorization: Bearer {{token}}`源自OAuth2.0 RFC 6750(Bearer后至少一空格)；Apifox后置操作提取`$.data.token`存环境变量；注销低安全=客户端删Token；高安全三方案=黑名单(单AT的jti精确吊销)/版本号(users.token_version递增全端失效)/短AT(5-15分钟)+Refresh Token(refresh_tokens表token_hash唯一索引+轮换链parent_id/replaced_by)；课堂考点:AT未过期RT过期仍可访问、双过期刷新失败强制下线 | W08+需登录接口及撤销/续期/多端管理功能题；做撤销/改密踢人/无感刷新回看W07第17-31页 |
+| W08-16 | 任务列表/成绩录入优化/上传/v1 vs v2验收/Vue+Axios/AI生成前端/整合部署 | 待课件补充后追加到`references/course-index.md`（教学日历首版标题已整体后移一周，以当周课件实物为准） | 做W08+作业时，若涉及登录/token/路由/查库/模型关联，必须回看W01-W07 |
 
 **自主回顾触发器（满足任一即去读历史课件原文，不要只靠记忆）：**
 - 作业提到 `sessions`、`User/login logout info`、`路由分组`、`变量规则` → 重读 W02 课件第19-29页。
@@ -72,10 +76,13 @@ course-root/
 - 作业提到 `JWT`、`Token`、`Bearer`、`JwtService`、`generate/verify/extractToken`、`SECRET/EXPIRE` → 重读 W06 第7-15页（三段式表6-2第7页、HS256公式第8页、iat/nbf/exp表6-3第9页、`composer require firebase/php-jwt`第11页、`.env[JWT]+app.php jwt`第12页、服务类规范第13页、generate第14页、verify+extract第15页）。
 - 作业提到 `模型login`、`md5比对`、`签发Token`、`data.token`、`BaseController/success/error` → 重读 W06 第18-22页（success/error业务码=HTTP码第18页、User继承基类第19页、Stu::login全文第21页、User::login全文第22页，注意generate入参是validatedData只取uid/urole）。
 - 作业提到 `AuthMiddleware改造`、`jwtUser`、`info当前用户`、`Token过期/篡改401` → 重读 W06 第25-27页（中间件全文第25页：extract→verify→catch Throwable 401→挂jwtUser；info全文第26页；[实验]6-3验收第27页）。
+- 作业定位到 `W07/第7周/week07` → W07课件第4-15页是对W06产物的完善复习（`verify`/`extractToken`完整实现、AuthMiddleware第13页、info第14页，实验沿用6-1第11页/6-3第15页，无6-2）；第17-31页是W06没有的JWT进阶理论，做撤销/续期/多端管理类作业必读。
+- 作业提到 `Bearer {{token}}`、`RFC 6750`、`Apifox提取变量`、`$.data.token`、`环境变量token` → 重读 W07 第6-8页（Bearer规范+登录后置操作提token+受保护接口Headers）；`$matches`捕获组 → 第9页。
+- 作业提到 `黑名单`、`jti`、`版本号`、`token_version`、`Refresh Token`、`无感刷新`、`轮换`、`强制下线`、`改密失效` → 重读 W07 第17-31页（低安全注销17、高安全三问题18、三方案表19、jti黑名单场景20、版本号场景+users表DDL 21、短AT+RT 23、无状态→部分有状态24、refresh_tokens表DDL 25、刷新6步26、流程图27、无感刷新案例28、RT失效四情况+清理策略29、课堂考点两问30-31）。
 
 ## 3. 执行流程（按顺序做，不跳步）
 
-1. **定位**：确认是第几周作业。模糊输入如“做作业1”“第二次课作业”要映射到 W01/W02/W03/W04/W05/W06，并口头确认 `我定位到W0X，你的作业文件是Y`。
+1. **定位**：确认是第几周作业。模糊输入如“做作业1”“第二次课作业”要映射到 W01-W07（注意："第7周作业"=JWT身份校验：完善verify/extractToken+JWT进阶理论，作业只交4图），并口头确认 `我定位到W0X，你的作业文件是Y`。
 2. **精读本週**：完整读取本週课件+作业文件，提取：实验编号（如[实验]2-1）、方法名、路由表达式、参数规则、提交物清单（几张截图/什么代码截图）。
 3. **判断回顾**：对照第2节触发器，决定是否深读历史课件。若需要，引用原文页码/命令，不要臆测。
 4. **直接生成**：输出可直接用的全部产物（见第4节格式）。不要反问环境信息，先按课程默认环境生成：`WAMP(Apache+PHP7.4/8.0+MySQL)`、`项目根 wamp64/www/[拼音缩写+学号后两位]/`、`edu应用`、`User控制器`。
@@ -110,12 +117,14 @@ W0X + 实验编号 + 对应课件页码
 - W04起login验证必须给四种：学生成功(200)+老师成功(200)+密码错误(401)+账号不存在(401)，注明走`Db::connect('edu_r')`只读连接；另给SQL日志证据：`runtime/log/`路径+`CONNECT/SHOW FULL COLUMNS/SELECT ... LIMIT 1[RunTime]`摘录+一句话解读
 - W05起stuInfo验证必须给：成功预览(学号参+`with(['classInfo.majorInfo.depInfo'])`+响应含班级/专业/系部嵌套)+`runtime/log/`证据(单条4次SQL：主表1+三级关联各1；列表100条预载入4次 vs 懒加载301次)+一句解读(点号嵌套、方法名大小写敏感)
 - W06起JWT验证必须给五类：login学生成功(200+`data{uid,uname,urole,udep,token}`)+login老师成功(200)+login失败(401账号或密码错误)+info成功(带`Authorization: Bearer <token>`返jwtUser)+info失败(无Token/过期/篡改均401)，每类给请求头+Body+响应JSON；注明Token放`data.token`、后续请求头携带、Payload仅uid/urole无密码、`firebase/php-jwt`自动校验exp/nbf
+- W07起Apifox自动化配置：登录接口加"后置操作→提取变量"(来源Response JSON、JSONPath `$.data.token`、变量名token、类型环境变量)，受保护接口Headers配`Authorization: Bearer {{token}}`(Bearer后至少一个空格)；理论考点附注：AT未过期+RT已过期仍可访问资源、AT与RT双过期刷新失败强制下线
 
 ## 5. 交作业截图清单（逐项打勾）
 - [ ] 图1... 图2... 每项注明：全屏+地址栏、代码全文、水印学号
 - [ ] W04固定5图合一：.env代码 / database.php代码 / login方法代码 / login预览4种情况 / 日志文件标注关键信息
 - [ ] W05固定4图合一(作业-05.md)：8个模型代码截图(Stu/ClassModel/Major/Dep/Te/Course/Task/Score) / User控制器stuInfo方法代码截图 / 关联预载入查询后的日志截图(标4次SQL) / 关联预载入预览截图，每项注明：全屏+地址栏、代码全文、水印学号+方法注释学号
 - [ ] W06固定9图合一(作业-06.md)：jwt安装过程 / .env代码(含[JWT]分组) / JwtService代码 / Stu+Te的login代码 / AuthMiddleware代码 / User的login代码 / User的info代码 / Apifox登录预览(学生老师×成功失败含地址响应) / Apifox的info预览(当前用户+token有误)，每项注明：全屏+地址栏、代码全文、水印学号+方法注释学号
+- [ ] W07固定4图合一(作业-07.md+课件-07第32页)：JwtService服务类代码(generate/verify/extractToken全文) / AuthMiddleware中间件代码 / User控制器info代码 / Apifox测info(当前登录学生/老师信息 + token有误401)预览，每项注明：全屏+地址栏、代码全文、水印学号+方法注释学号
 
 ## 6. 过程记录表答案（直接填空可用）
 表X-X: 分组1代码=... 分组2代码=...
@@ -135,5 +144,6 @@ W0X课件第X页 + 一句话为什么引用
 - **不编造**：课件没讲的扩展包、字段名不编。若作业依赖缺失的前置信息（如学号、域名前缀），用 `[你的学号]` 占位并标红提醒替换，绝不跳过。
 - **数据库锁定（W04+）**：`.env`放项目根、ini格式、`[EDU_R]/[EDU_RU]/[EDU_RC]`分组账号、`DB_PREFIX=guirz_`、`DB_DRIVER=edu_r`默认只读；`database.php`中`default=>env('DB_DRIVER','edu_r')`，三连接全字段`env()`读，不硬编码密码；`connect()`必须链式首位、仅当次有效；`name()`自动加前缀 vs `table()`全名；`find(无则null)/select(转toArray)/value(无则null)/column(无则[])`，`update/delete`返回影响条数(0=无修改)、删全表必须`delete(true)`；`login()`按`urole=stu/te`分表查，账号不存在与密码错误均`code 401`，成功`code 200`；`trigger_sql=>env('APP_DEBUG',true)`，生产关闭SQL日志。
 - **模型锁定（W05+）**：`php think make:model edu@Xxx`落`app/edu/model/`，`namespace app\edu\model`(课件第7页`app\model`为单应用示例，多应用必须加`edu`)；`extends Model`；命名驼峰首字母大写，`Class`保留字用`ClassModel`+`$table='class'`；默认主键`id`，非id设`$pk`；`$schema`显式定义省一次查询；`$connection`默认读配置；`belongsTo(关联类,当前模型外键,关联主键)`放子表、`hasMany(关联类,关联外键,当前主键)`放父表；本课六组：`Stu-classInfo→ClassModel(stu_class/cl_id)`、`ClassModel-stus→Stu`、`ClassModel-majorInfo→Major(cl_major)`、`Major-classes→ClassModel`、`Major-depInfo→Dep(m_dep)`、`Dep-majors→Major`；预载入`::with('classInfo')`2次SQL(主SELECT+关联WHERE IN)，多级`with(['classInfo.majorInfo.depInfo'])`单条4次；列表优先预载入，禁止循环N+1；方法名与with大小写一致；嵌套不用闭包限字段(内层闭包报错)；`stuInfo()`经`toArray()`取`cl_name/m_name/dep_name`，return json 200。
-- **JWT锁定（W06+）**：`composer require firebase/php-jwt`；密钥32字节+`openssl rand -base64 32`，`EXPIRE=7200`；`JwtService`是普通类禁继承`think\Service`；编解码必须显式`HS256`（防none绕过）；`generate`的payload固定`iat/nbf/exp/uid/urole`(Unix秒，库自动验exp/nbf)，Payload仅Base64禁存密码；`verify`分类catch(`Expired→登录已经过期`/`SignatureInvalid→签名无效`/`BeforeValid→尚未生效`→兜底解析失败)；`extractToken`用`/^Bearer\s+(.+)$/i`；`User extends BaseController`后用`success(码,消息,data)/error`（业务码=HTTP码，`json($data,$code)`第二参是HTTP码）；`Stu/Te::login`失败一律`return null`（不抛异常，区分查无用户与md5错但都null）；`User::login`读`$this->request->validatedData`(W03挂载)按urole分发，Token放`data.token`；`AuthMiddleware`用`extract→verify`，`catch(\Throwable)`返`json([code 401,message],401)`，通过挂`$request->jwtUser=[uid,urole]`后`$next`，info直接`success(jwtUser)`不再查库；中间件内禁`$this->error`（非控制器），直接`json()`但字段与基类一致。
+- **JWT锁定（W06+）**：`composer require firebase/php-jwt`；密钥32字节+`openssl rand -base64 32`，`EXPIRE=7200`；`JwtService`是普通类禁继承`think\Service`；编解码必须显式`HS256`（防none绕过）；`generate`的payload固定`iat/nbf/exp/uid/urole`(Unix秒，库自动验exp/nbf)，Payload仅Base64禁存密码；`verify`分类catch(`Expired→登录已经过期`/`SignatureInvalid→签名无效`/`BeforeValid→尚未生效`→兜底解析失败)；`extractToken`用`/^Bearer\s+(.+)$/i`（`$matches[0]`=整体、`$matches[1]`=Token）；`User extends BaseController`后用`success(码,消息,data)/error`（业务码=HTTP码，`json($data,$code)`第二参是HTTP码）；`Stu/Te::login`失败一律`return null`（不抛异常，区分查无用户与md5错但都null）；`User::login`读`$this->request->validatedData`(W03挂载)按urole分发，Token放`data.token`；`AuthMiddleware`用`extract→verify`，`catch(\Throwable)`返`json([code 401,message],401)`（中间件响应含code/message/data与基类error一致），通过挂`$request->jwtUser=[uid,urole]`后`$next`，info直接`success(jwtUser)`不再查库；中间件内禁`$this->error`（非控制器），直接`json()`但字段与基类一致。
+- **JWT进阶锁定（W07+理论，做功能题时引用不编造实现）**：注销低安全=客户端删Token，服务器零操作；高安全三问题=单点即时失效/多端同步失效/限损+续期；三方案对象表：黑名单→单AT精确吊销、版本号/白名单→全端失效、短exp+RT→限损窗口+续期；写jti黑名单场景=单设备注销/踢指定设备/单token泄露/管理员吊销会话（不用版本号以防误伤其他会话）；`token_version`递增场景=全端注销/改密/重置密码/封禁/被盗用/管理员强下线，且通常同时吊销RT，users表DDL追加`token_version INT UNSIGNED NOT NULL DEFAULT 1`；短AT=5-15分钟，RT极长且服务器存数据表或Redis（无状态→部分有状态，只存"还能不能用"）；`refresh_tokens`表关键列：`token_hash CHAR(64)唯一索引`、`user_id`、`expires_at`、`revoked_at NULL=未吊销`、`parent_id/replaced_by`轮换链；刷新流程固定6步：收RT→算hash查表(存在/未吊销/未过期/类型对)→**标旧已轮换防重放**→生成新RT写新行→旧行`replaced_by=新id,revoked_at=NOW()`→签新AT(不落库)→返`{new_access_token,new_refresh_token}`；非法RT=吊销整条轮换链强制下线；课堂考点：AT未过期+RT已过期**可**继续访问资源（业务请求只验AT不查RT）、AT与RT双过期刷新**失败**必须重登。
 - **中文输出**：全中文讲解+代码注释中文，命令保持英文原文。

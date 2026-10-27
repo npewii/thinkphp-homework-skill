@@ -95,7 +95,17 @@
 - **[实验]6-3 中间件+控制器**（第22/25-27页）：`User::login`读`$this->request->validatedData`(W03)按urole分发`Stu/Te::login`+失败`error(401)`+`generate($data)`+`data.token`+`success(200)`；`AuthMiddleware`全文第25页（extract→verify→`catch(\Throwable)`401→挂`$request->jwtUser=[uid,urole]`→`$next`，中间件内直接`json()`禁`$this->error`）；`User::info`返`success(200,'信息获取成功',jwtUser)`，路由绑AuthMiddleware；验收登录带token、无Token/过期/篡改访info均401。
 - **作业W06**：[实验]6-1~6-3合并9图一文件：jwt安装 / .env / JwtService / Stu+Te的login / AuthMiddleware / User的login / User的info / Apifox登录(师生×成功失败) / Apifox的info(当前用户+token误)。标识：图水印学号+方法注释学号。
 
-## W07-W16 待补充（已从W01教学日历提取标题）
-- W07 教学任务列表 / W08 成绩批量录入 / W09 录入性能优化 / W10 头像上传 / W11 v1 vs v2验收 / W12 Vue3+Axios双基址 / W13 登录页+路由守卫 / W14 任务列表页 / W15 成绩录入页 / W16 整合部署
-- 注：W03实际课件为“中间件与请求验证”（含[实验]3-1/3-2），W04实际课件为“数据库配置与访问”（含[实验]4-1/4-2/4-3），W05实际课件为“模型：关联与预载入”（含[实验]5-1~5-4），W06实际课件为“JWT身份认证”（含[实验]6-1~6-3），上表标题系开学初版日历，以课件实物为准。
-- 每学完一周，往此处追加：主题、关键命令/文件、复用点。保持“一周一段”。
+## W07：JWT身份校验（课程编号26-27-01，[实验]6-1/6-3 + JWT进阶理论）
+- **内容性质**：前半（第4-15页）完善复习W06产物：`verify`完整实现（4类catch转中文提示，第5页）、`extractToken`实现+`$matches[0]/[1]`捕获组说明（第9-10页）；`AuthMiddleware`全文（第13页）与`User::info`全文（第14页）与W06相同但说明更细。实验沿用[实验]6-1（第11页）/6-3（第15页），**无6-2**。
+- **Bearer规范**（第6页）：`PATCH http://www.suit-edu.cn/guirzv2/users/2303010350`，Headers配`Authorization: Bearer {{token}}`；`Bearer`前缀源自**OAuth 2.0 Bearer Token规范（RFC 6750）**：`credentials = "Bearer" 1*SP b64token`，Bearer后至少一个空格；语义="持有者令牌"，任何持令牌者皆可访问。
+- **Apifox自动化**（第7-8页）：登录接口加"后置操作→提取变量"：来源`Response JSON`、JSONPath `$.data.token`、变量名`token`、类型`环境变量`；受保护接口Headers参数值`Bearer {{token}}`（前缀必须Bearer+至少一空格）。
+- **作业W07**：[实验]6-1 JwtService代码截图 + [实验]6-3 AuthMiddleware代码/User::info代码/Apifox测info（当前登录学生/老师信息；token有误）预览，**合并4图一文件**。标识：图水印学号+方法注释学号。
+- **JWT服务器行为补充**（第17-21页）：注销低安全=客户端删Token后服务器"什么都不用做"；高安全三问题=单点即时失效/多端同步失效/限额损窗口+安全续期；三方案（表第19页）：黑名单（解决单AT立即失效）、版本号/白名单（解决全端失效）、短过期+Refresh Token（限损+续期）；写jti黑名单场景（第20页）：单设备注销/踢指定设备/单token泄露/管理员吊销单会话/RT轮换后旧AT作废/手动撤销设备——原因是版本号会误伤其他会话；`token_version`递增场景（第21页）：全端注销/改密/封禁/被盗用/管理员强下线/重置密码/安全事件，通常同时吊销RT；users表DDL追加`token_version INT UNSIGNED NOT NULL DEFAULT 1`。
+- **短AT+Refresh Token**（第22-29页）：需求=长期在线无感刷新+多设备互不干扰；AT=5-15分钟极短（限损窗口），RT极长、服务器存数据表或Redis（**无状态→部分有状态**，只存"还能不能用"，不存业务数据）；`refresh_tokens`表DDL（第25页）：`token_hash CHAR(64)唯一索引`、`user_id/client_id/device_info`归属、`expires_at/created_at/revoked_at`生命周期、`parent_id/replaced_by`轮换链、`ip_address/user_agent`元数据；刷新6步（第26页）：收RT→算hash查表（存在/未吊销/未过期/类型对）→**校验通过立即标记旧token已轮换（关键防重放）**→生成新RT算hash插新行→旧行`replaced_by=新行id,revoked_at=NOW()`→签发新AT（纯无状态不落库）→返回`{new_access_token, new_refresh_token}`；非法RT→吊销异常用户整条RT链路（第27页流程图）；案例（第28页）：登录得AT 10分钟+RT 1周→8分钟后401→后台静默用RT申请→服务器记账并返新AT+新RT→重试，对用户完全透明；RT失效四情况+清理策略（第29页）：自然过期交定时清理定时DELETE保留N天、主动吊销已写标记、主动注销立即UPDATE、重用/盗用立即吊销整链；Redis存储则靠TTL自动过期。
+- **课堂考点**（第30-31页）：①AT未过期+RT已过期→**可以**继续访问资源（业务接口只验AT验签与有效期，不查RT）；②AT过期+RT也过期→拿过期RT刷新**拿不到**新AT（查表验`expires_at`失败），判定会话失效强制下线重登。
+- **后续复用**：W08+需登录接口照常依赖JWT三件套；如遇撤销/续期/多端登录管理/改密踢人等功能题，按本节理论展开，页码引W07第17-31页。
+
+## W08-W16 待补充（已从W01教学日历提取标题）
+- W08 教学任务列表 / W09 成绩批量录入 / W10 录入性能优化 / W11 头像上传 / W12 v1 vs v2验收 / W13 Vue3+Axios双基址 / W14 登录页+路由守卫 / W15 任务列表页 / W16 整合部署
+- 注：W03实际课件为"中间件与请求验证"（含[实验]3-1/3-2），W04实际课件为"数据库配置与访问"（含[实验]4-1/4-2/4-3），W05实际课件为"模型：关联与预载入"（含[实验]5-1~5-4），W06实际课件为"JWT身份认证"（含[实验]6-1~6-3），W07实际课件为"JWT身份校验"（完善verify/extractToken+JWT进阶理论，实验沿用6-1/6-3）；W07不在初版日历内，故后续周主题可能整体后移，上表标题系开学初版日历，以课件实物为准。
+- 每学完一周，往此处追加：主题、关键命令/文件、复用点。保持"一周一段"。
