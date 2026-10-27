@@ -105,7 +105,21 @@
 - **课堂考点**（第30-31页）：①AT未过期+RT已过期→**可以**继续访问资源（业务接口只验AT验签与有效期，不查RT）；②AT过期+RT也过期→拿过期RT刷新**拿不到**新AT（查表验`expires_at`失败），判定会话失效强制下线重登。
 - **后续复用**：W08+需登录接口照常依赖JWT三件套；如遇撤销/续期/多端登录管理/改密踢人等功能题，按本节理论展开，页码引W07第17-31页。
 
-## W08-W16 待补充（已从W01教学日历提取标题）
-- W08 教学任务列表 / W09 成绩批量录入 / W10 录入性能优化 / W11 头像上传 / W12 v1 vs v2验收 / W13 Vue3+Axios双基址 / W14 登录页+路由守卫 / W15 任务列表页 / W16 整合部署
-- 注：W03实际课件为"中间件与请求验证"（含[实验]3-1/3-2），W04实际课件为"数据库配置与访问"（含[实验]4-1/4-2/4-3），W05实际课件为"模型：关联与预载入"（含[实验]5-1~5-4），W06实际课件为"JWT身份认证"（含[实验]6-1~6-3），W07实际课件为"JWT身份校验"（完善verify/extractToken+JWT进阶理论，实验沿用6-1/6-3）；W07不在初版日历内，故后续周主题可能整体后移，上表标题系开学初版日历，以课件实物为准。
+## W08：查询接口设计（课程编号26-27-01，[实验]7-1/7-2/7-3）
+- **三个查询接口**（Apifox均在反代v2域名guirzv2，Headers一律`Bearer {{token}}`）：
+  - 教学任务：`GET /guirzv2/tasks`；Query `startTerm/endTerm/scoreStatus/teId/page/limit(默认15)`；`GET /edu/task/index`规范地址
+  - 班级成绩：`GET /guirzv2/scores/task?taskId=1`；`GET /edu/score/getTaskScore/:taskId`
+  - 个人成绩单：`GET /guirzv2/scores/student`；Query `taskId/startTerm/endTerm/stuId(默认Token提取防越权)/limit/page`；`GET /edu/score/getStuScore`
+- **Apifox数据模型三件**（第7-9页）：`分页`(total/per_page/current_page/last_page/list)、`task`(ta_id/ta_term/ta_te/ta_class/ta_c_name/ta_c_type/ta_c_exam)、`成绩`(stu_id/stu_name/sc_normal/sc_lab/sc_midterm/sc_final/sc_overall/sc_makeup/sc_again)；响应data引用分页模型，list ITEMS关联task模型。
+- **参数分组原则**（第12页）：业务参数`$params=$request->only(['startTerm'=>0,'endTerm'=>0,'scoreStatus'=>0])`（白名单+默认值）；流程控制参数不入$params——`$teId=$request->get('teId',$request->jwtUser['uid'])`（防越权）、`$limit=(int)$request->get('limit',15)`。
+- **[实验]7-1 教学任务**（第13-21页）：Task::index try-catch+`$code=$th->getCode()?:500`+total==0→'查询成功，但暂无教学任务'；`TermTool::thisTerm`（第15页）：月≤8=上y年02学期，`(int)(startY.(startY+1).termNo)`（2026.10→262701、2026.5→252602）；Task::getTask（第19-20页）：`with(['classInfo','teInfo','courseInfo'])->hasWhere('teInfo',['te_id'=>$teId])->where('ta_score',$scoreStatus)`，**hasWhere必须在where之前**；都0→TermTool精确、否则whereBetween；`array_merge($params,['teId'=>$teId])`入query保翻页；paginate后手动组装五键；foreach `?->`/`??'未知教师/未知课程/未知班级'`；task表**新增`ta_score`列**（0未提交/1部分录入/2已提交）。paginate机制（第17页）：page隐式、query保条件、越界999返空数组total真实。`?->`规则（第18页）：防脏数据恒null→Fatal，`??`兜底；主模型字段不加?->。验收：无参/区间242501-262702/limit=5/page=999四情形。
+- **[实验]7-2 班级成绩**（第23-31页）：Task::getTaskScore（第29-30页）：`with(['teInfo','classInfo.stus','scores','courseInfo'])`+`!$taskRe`→`throw new \Exception('教学任务编号错误',404)`；task头部`?->/??`（ta_c_type→'未知考试类型'）；**哈希字典优化**：`$scoresDict[$score->sc_stu]=$score`（键取成绩模型sc_stu，**不是stu_id**），遍历学生`$scoresDict[$stu->stu_id]?? null`再`$stuScore?->sc_*`→未录入为null；O(N²)→O(N)空间换时间，防串号/集体变最后一条；防御`if($taskRe->classInfo && $taskRe->classInfo->stus)`；return `['task'=>$task,'score'=>$scores]`。
+- **[实验]7-3 个人成绩单**（第33-41页）：Score::getStuScore（第37页）参数分组同7-1（`only(['taskId'=>0,'startTerm'=>0,'endTerm'=>0])`+stuId=jwtUser+total==0'查询成功，但暂无成绩'）；Score::getScore（第38-40页）：`with(['taskInfo.courseInfo','taskInfo.teInfo','stuInfo'])`；区间判定：都0→`hasWhere('taskInfo',['ta_term'=>term])`直传，否则`hasWhere('taskInfo',fn($q)=>$q->where('ta_term','between',...))`闭包（ThinkPHP8闭包针对关联模型）；`taskId!=0`→`where('sc_task',taskId)`；`where('sc_stu',$stuId)->paginate`+query带stuId；多级`?->`组装`stu_id/stu_name/c_name('未知')/te_name('未知')`+sc_*直接获取。
+- **依赖关系补充**（课件未给定义，按W05规则补齐）：`Task::classInfo/teInfo/courseInfo`属于belongsTo、`Task::scores`hasMany(Score,'sc_task','ta_id')、`ClassModel::stus`用W05已有、`Score::taskInfo`belongsTo(Task,'sc_task','ta_id')、`Score::stuInfo`belongsTo(Stu,'sc_stu',Stu主键)；方法名与with大小写一致。
+- **作业W08**：[实验]7-1~7-3合并8图一文件：TermTool服务类 / 控制器Task / 控制器Score / 模型Task / 模型Score代码（作业1~3共用）+3个Apifox预览（老师查自己任务、老师查某任务班级成绩、学生查本人某课或历年成绩）。标识：图水印学号+方法注释学号。
+
+## W09-W16 待补充（已从W01教学日历提取标题）
+- 初版日历：教学任务列表 / 成绩批量录入 / 录入性能优化 / 头像上传 / v1 vs v2验收 / Vue3+Axios双基址 / 登录页+路由守卫 / 任务列表页 / 成绩录入页 / 整合部署
+- 实际进度对照：W08课件为"查询接口设计"（教学任务/班级成绩/个人成绩三查询接口），对应初版日历"教学任务列表"主题点，故后续周主题大概率顺延至W09起且可能合并删减，以课件实物为准。
+- 注：W03实际课件为"中间件与请求验证"（含[实验]3-1/3-2），W04实际课件为"数据库配置与访问"（含[实验]4-1/4-2/4-3），W05实际课件为"模型：关联与预载入"（含[实验]5-1~5-4），W06实际课件为"JWT身份认证"（含[实验]6-1~6-3），W07实际课件为"JWT身份校验"（完善verify/extractToken+JWT进阶理论，实验沿用6-1/6-3），W08实际课件为"查询接口设计"（[实验]7-1~7-3，对应初版日历"教学任务列表"）；上表标题系开学初版日历，以课件实物为准。
 - 每学完一周，往此处追加：主题、关键命令/文件、复用点。保持"一周一段"。
