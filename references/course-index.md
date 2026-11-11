@@ -118,6 +118,13 @@
 - **依赖关系补充**（课件未给定义，按W05规则补齐）：`Task::classInfo/teInfo/courseInfo`属于belongsTo、`Task::scores`hasMany(Score,'sc_task','ta_id')、`ClassModel::stus`用W05已有、`Score::taskInfo`belongsTo(Task,'sc_task','ta_id')、`Score::stuInfo`belongsTo(Stu,'sc_stu',Stu主键)；方法名与with大小写一致。
 - **作业W08**：[实验]7-1~7-3合并8图一文件：TermTool服务类 / 控制器Task / 控制器Score / 模型Task / 模型Score代码（作业1~3共用）+3个Apifox预览（老师查自己任务、老师查某任务班级成绩、学生查本人某课或历年成绩）。标识：图水印学号+方法注释学号。
 
+## W10：成绩文件的上传及处理（课程编号26-27-01，[实验]8-1/8-2/8-3）
+- **PhpSpreadsheet**（第4-13页）：`composer require phpoffice/phpspreadsheet`（需ext-zip/xml/gd）；`IOFactory::load($file)->getSheet(0)->toArray()`二维数组（列索引0起：A序号0/B班级1/C学号2/D姓名3/E起成绩4）；`array_shift`去表头；临时文件直接用`$this->request->file('scoreFile')->getPathname()`不持久化（不配filesystem.php）。
+- **权重设置接口**（第16-22页）：task表加4列`ta_normal_weight/ta_lab_weight/ta_midterm_weight/ta_final_weight TINYINT UNSIGNED DEFAULT 0`；业务规则=整数+总和100+期末≠0；控制器`setWeight($taskId)`用`file_get_contents('php://input')`收JSON→`modelSetWeight`（`Db::connect('edu_ru')`先验存在404再update）；路由`PATCH tasks/:taskId`；重复提交同值仍200；权重字段须同步`$schema`并加入getTaskScore返回（第51页）。
+- **成绩上传接口**（第24-49页）：`POST /v2/scores?taskId=N`+form-data`scoreFile`；核心="解析+合并+校验+组装"不入库；异常双轨制：前置校验（任务不存在404/未设权重400/学号列空400/班级无学生400）抛`\Exception`中断；行级校验（学号不属本班/表内重复）收集`$errorRows`统一`throw new ValidateException(json_encode(...,JSON_UNESCAPED_UNICODE))`；控制器catch(ValidateException)返`$this->error(400,'成绩文件读取失败',json_decode($th->getMessage()))`逐条展示；数组函数：`array_column`提取学号列/`array_unique`去重/`array_filter`过滤空/`array_map('strval')`统一类型/`in_array`校验；空值兜底=`Db::name('score')->column('*','sc_stu')`建existingMap按学号补全；`$returnArray`以学号为键、成绩为字符串。
+- **后续复用**：W11+做成绩确认入库/性能优化时，dealScoreFile的$returnArray即待写入数据；setWeight的权重字段供总评计算；行级校验JSON数组返回模式可复用。
+- **本项目落地**：`app/edu/controller/Task.php::setWeight`、`app/edu/model/Task.php::modelSetWeight`+getTaskScore权重返回、`app/edu/controller/Score.php::importScoreFile`、`app/edu/model/Score.php::dealScoreFile`、路由`PATCH tasks/:taskId`+`POST scores`；测试产物在`homework/week10/`（README-作业说明.md含全部实测响应）。
+
 ## W09-W16 待补充（已从W01教学日历提取标题）
 - 初版日历：教学任务列表 / 成绩批量录入 / 录入性能优化 / 头像上传 / v1 vs v2验收 / Vue3+Axios双基址 / 登录页+路由守卫 / 任务列表页 / 成绩录入页 / 整合部署
 - 实际进度对照：W08课件为"查询接口设计"（教学任务/班级成绩/个人成绩三查询接口），对应初版日历"教学任务列表"主题点，故后续周主题大概率顺延至W09起且可能合并删减，以课件实物为准。
